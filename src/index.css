@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* SF Pro Display & SF Mono Fonts */
+@font-face {
+  font-family: 'SF Pro Display';
+  src: local('SF Pro Display');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SF Mono';
+  src: local('SF Mono');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Fallback to system fonts if SF Pro not available */
+:root {
+  --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+  
+  /* Monad Color Palette */
+  --monad-purple: #7B3FF2;
+  --monad-purple-light: #A855F7;
+  --monad-cyan: #06FFA5;
+  --monad-dark: #0F0F1A;
+  --monad-dark-secondary: #1A1A2E;
+  --monad-amber: #FBBF24;
+  
+  /* Background gradients */
+  --gradient-primary: linear-gradient(135deg, #7B3FF2 0%, #A855F7 100%);
+  --gradient-mesh: radial-gradient(at 0% 0%, rgba(123, 63, 242, 0.2) 0px, transparent 50%),
+                   radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+                   radial-gradient(at 100% 100%, rgba(6, 255, 165, 0.1) 0px, transparent 50%),
+                   radial-gradient(at 0% 100%, rgba(123, 63, 242, 0.1) 0px, transparent 50%);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-display);
+  background: var(--monad-dark);
+  color: #ffffff;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(123, 63, 242, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(123, 63, 242, 0.7);
+}
+
+/* Glassmorphism base */
+.glass {
+  background: rgba(26, 26, 46, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Animated gradient background */
+@keyframes gradient-shift {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animated-gradient {
+  animation: gradient-shift 8s ease-in-out infinite;
+}
+
+/* Glow effects */
+.glow-purple {
+  box-shadow: 0 0 20px rgba(123, 63, 242, 0.3), 0 0 40px rgba(123, 63, 242, 0.1);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(6, 255, 165, 0.3), 0 0 40px rgba(6, 255, 165, 0.1);
+}
+
+/* Text gradient */
+.text-gradient {
+  background: linear-gradient(135deg, #A855F7 0%, #06FFA5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Selection */
+::selection {
+  background: rgba(123, 63, 242, 0.3);
+  color: #ffffff;
+}
+
+/* Focus visible */
+*:focus-visible {
+  outline: 2px solid rgba(123, 63, 242, 0.5);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, transform, box-shadow, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
