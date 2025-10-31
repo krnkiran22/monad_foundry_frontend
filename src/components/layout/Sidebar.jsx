@@ -46,8 +46,12 @@ export const Sidebar = ({ activeSection, onSectionChange }) => {
             className="flex items-center gap-3"
             whileHover={{ scale: 1.05 }}
           >
-            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-[#7B3FF2] to-[#A855F7] flex items-center justify-center glow-purple">
-              <span className="text-2xl font-bold">M</span>
+            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-[#7B3FF2] to-[#A855F7] flex items-center justify-center glow-purple overflow-hidden">
+              <img 
+                src="/monadlogo.webp" 
+                alt="Monad Logo" 
+                className="w-8 h-8 object-contain"
+              />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">Monad</h1>
