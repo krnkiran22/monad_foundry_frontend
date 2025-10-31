@@ -1,169 +1,192 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { ethers } from 'ethers';
-import { MONAD_TESTNET, WALLET_STATUS } from '../utils/constants';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { BrowserProvider } from 'ethers';
+import { MONAD_TESTNET } from '../utils/constants';
 
-const WalletContext = createContext();
+/**
+ * Wallet Context & Hook
+ * Manages wallet connection and network state
+ */
+
+const WalletContext = createContext(null);
 
 export const WalletProvider = ({ children }) => {
-  const [status, setStatus] = useState(WALLET_STATUS.DISCONNECTED);
   const [account, setAccount] = useState(null);
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [chainId, setChainId] = useState(null);
-
-  // Check if MetaMask is installed
-  const isMetaMaskInstalled = () => {
-    return typeof window.ethereum !== 'undefined';
-  };
-
-  // Switch to Monad Testnet
-  const switchToMonadTestnet = async () => {
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: MONAD_TESTNET.chainId }],
-      });
-      return true;
-    } catch (error) {
-      // Chain not added, try to add it
-      if (error.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [MONAD_TESTNET],
-          });
-          return true;
-        } catch (addError) {
-          console.error('Failed to add Monad Testnet:', addError);
-          return false;
-        }
+  const [connecting, setConnecting] = useState(false);
+  
+  useEffect(() => {
+    // Check if already connected
+    checkConnection();
+    
+    // Listen for account changes
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+    }
+    
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
-      console.error('Failed to switch network:', error);
-      return false;
+    };
+  }, []);
+  
+  const checkConnection = async () => {
+    if (typeof window.ethereum === 'undefined') return;
+    
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const accounts = await provider.listAccounts();
+      
+      if (accounts.length > 0) {
+        const signer = await provider.getSigner();
+        const network = await provider.getNetwork();
+        
+        setProvider(provider);
+        setSigner(signer);
+        setAccount(await signer.getAddress());
+        setChainId(Number(network.chainId));
+      }
+    } catch (error) {
+      console.error('Error checking connection:', error);
     }
   };
-
-  // Connect wallet
-  const connect = useCallback(async () => {
-    if (!isMetaMaskInstalled()) {
-      alert('Please install MetaMask to use this application');
-      return;
+  
+  const connect = async () => {
+    if (typeof window.ethereum === 'undefined') {
+      throw new Error('MetaMask is not installed');
     }
-
-    setStatus(WALLET_STATUS.CONNECTING);
-
+    
+    setConnecting(true);
+    
     try {
       // Request account access
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts',
-      });
-
-      const web3Provider = new ethers.BrowserProvider(window.ethereum);
-      const network = await web3Provider.getNetwork();
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
       
-      // Check if on correct network
-      if (Number(network.chainId) !== MONAD_TESTNET.chainIdDecimal) {
-        const switched = await switchToMonadTestnet();
-        if (!switched) {
-          setStatus(WALLET_STATUS.WRONG_NETWORK);
-          return;
-        }
-      }
-
-      const web3Signer = await web3Provider.getSigner();
-
-      setProvider(web3Provider);
-      setSigner(web3Signer);
-      setAccount(accounts[0]);
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      const network = await provider.getNetwork();
+      
+      setProvider(provider);
+      setSigner(signer);
+      setAccount(address);
       setChainId(Number(network.chainId));
-      setStatus(WALLET_STATUS.CONNECTED);
+      
+      // Switch to Monad testnet if not already
+      if (Number(network.chainId) !== MONAD_TESTNET.chainId) {
+        await switchToMonadTestnet();
+      }
+      
+      return address;
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      setStatus(WALLET_STATUS.DISCONNECTED);
+      console.error('Error connecting wallet:', error);
+      throw error;
+    } finally {
+      setConnecting(false);
     }
-  }, []);
-
-  // Disconnect wallet
-  const disconnect = useCallback(() => {
+  };
+  
+  const disconnect = () => {
     setAccount(null);
     setProvider(null);
     setSigner(null);
     setChainId(null);
-    setStatus(WALLET_STATUS.DISCONNECTED);
-  }, []);
-
-  // Handle account changes
-  useEffect(() => {
-    if (!window.ethereum) return;
-
-    const handleAccountsChanged = (accounts) => {
-      if (accounts.length === 0) {
-        disconnect();
-      } else if (accounts[0] !== account) {
-        setAccount(accounts[0]);
-      }
-    };
-
-    const handleChainChanged = (newChainId) => {
-      const chainIdNum = parseInt(newChainId, 16);
-      setChainId(chainIdNum);
+  };
+  
+  const switchToMonadTestnet = async () => {
+    if (typeof window.ethereum === 'undefined') return;
+    
+    console.log('Attempting to switch to Monad Testnet:', {
+      chainId: MONAD_TESTNET.chainId,
+      chainIdHex: `0x${MONAD_TESTNET.chainId.toString(16)}`,
+      rpcUrl: MONAD_TESTNET.rpcUrl,
+      name: MONAD_TESTNET.name,
+    });
+    
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${MONAD_TESTNET.chainId.toString(16)}` }],
+      });
+    } catch (error) {
+      console.log('Switch network error:', error);
       
-      if (chainIdNum !== MONAD_TESTNET.chainIdDecimal) {
-        setStatus(WALLET_STATUS.WRONG_NETWORK);
-      } else {
-        setStatus(WALLET_STATUS.CONNECTED);
-      }
-    };
-
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
-
-    return () => {
-      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      window.ethereum.removeListener('chainChanged', handleChainChanged);
-    };
-  }, [account, disconnect]);
-
-  // Auto-connect if previously connected
-  useEffect(() => {
-    const autoConnect = async () => {
-      if (isMetaMaskInstalled()) {
+      // This error code indicates that the chain has not been added to MetaMask
+      if (error.code === 4902) {
         try {
-          const accounts = await window.ethereum.request({
-            method: 'eth_accounts',
+          console.log('Adding Monad Testnet to MetaMask...');
+          
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: `0x${MONAD_TESTNET.chainId.toString(16)}`,
+                chainName: MONAD_TESTNET.name,
+                nativeCurrency: {
+                  name: 'Monad',
+                  symbol: 'MON',
+                  decimals: 18,
+                },
+                rpcUrls: [MONAD_TESTNET.rpcUrl],
+                blockExplorerUrls: [MONAD_TESTNET.blockExplorer],
+              },
+            ],
           });
-          if (accounts.length > 0) {
-            connect();
-          }
-        } catch (error) {
-          console.error('Auto-connect failed:', error);
+          
+          console.log('✅ Monad Testnet added successfully!');
+        } catch (addError) {
+          console.error('❌ Error adding network:', addError);
+          throw addError;
         }
+      } else {
+        throw error;
       }
-    };
-
-    autoConnect();
-  }, [connect]);
-
+    }
+  };
+  
+  const handleAccountsChanged = (accounts) => {
+    if (accounts.length === 0) {
+      disconnect();
+    } else {
+      setAccount(accounts[0]);
+    }
+  };
+  
+  const handleChainChanged = () => {
+    // Reload page on chain change as recommended by MetaMask
+    window.location.reload();
+  };
+  
   const value = {
-    status,
     account,
     provider,
     signer,
     chainId,
-    isConnected: status === WALLET_STATUS.CONNECTED,
-    isWrongNetwork: status === WALLET_STATUS.WRONG_NETWORK,
+    connecting,
+    isConnected: !!account,
+    isCorrectNetwork: chainId === MONAD_TESTNET.chainId,
     connect,
     disconnect,
     switchToMonadTestnet,
   };
-
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+  
+  return (
+    <WalletContext.Provider value={value}>
+      {children}
+    </WalletContext.Provider>
+  );
 };
 
 export const useWallet = () => {
   const context = useContext(WalletContext);
   if (!context) {
-    throw new Error('useWallet must be used within WalletProvider');
+    throw new Error('useWallet must be used within a WalletProvider');
   }
   return context;
 };
+
+export default useWallet;

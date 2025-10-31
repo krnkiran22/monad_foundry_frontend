@@ -1,53 +1,62 @@
-import { motion } from 'framer-motion';
-import { Bell, User } from 'lucide-react';
-import { WalletConnect } from './WalletConnect';
-import { NetworkIndicator } from './NetworkIndicator';
+import React from 'react';
+import Button from '../shared/Button';
+import Badge from '../shared/Badge';
+import { Menu, Wallet, LogOut } from 'lucide-react';
 import { useWallet } from '../../hooks/useWallet';
-import { Badge } from '../ui/Badge';
-import { useRoleCheck } from '../../hooks/useRoleCheck';
+import { shortenAddress } from '../../utils/format';
 
-export const TopBar = () => {
-  const { isConnected } = useWallet();
-  const { isAdmin, isMinter } = useRoleCheck();
+/**
+ * Top Navigation Bar Component
+ * Header for authenticated pages
+ */
 
+const TopBar = ({ onMenuToggle }) => {
+  const { account, disconnect } = useWallet();
+  
   return (
-    <motion.header
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      className="glass border-b border-white/10 px-6 py-4 sticky top-0 z-30 backdrop-blur-xl"
-    >
-      <div className="flex items-center justify-between">
-        {/* Left section */}
+    <header className="sticky top-0 z-50 h-16 bg-white border-b border-[#E5E5E5]">
+      <div className="h-full px-6 flex items-center justify-between gap-4">
+        {/* Left: Menu Toggle (Mobile) */}
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold text-white hidden md:block">
-            Token Dashboard
-          </h2>
-          {isConnected && (
-            <div className="flex items-center gap-2">
-              {isAdmin && <Badge variant="admin">Admin</Badge>}
-              {isMinter && <Badge variant="minter">Minter</Badge>}
-            </div>
-          )}
-        </div>
-
-        {/* Right section */}
-        <div className="flex items-center gap-4">
-          <NetworkIndicator />
+          <button
+            onClick={onMenuToggle}
+            className="lg:hidden p-2 rounded-lg text-[#666666] hover:bg-[#FAFAFA] transition-colors"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           
-          {isConnected && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="glass p-2 rounded-lg hover:bg-white/10 transition-all relative"
+          {/* Page Title - will be dynamic */}
+          <h2 className="text-lg font-semibold text-[#1A1A1A] hidden sm:block">
+            Dashboard
+          </h2>
+        </div>
+        
+        {/* Right: Network + Wallet */}
+        <div className="flex items-center gap-3">
+          {/* Network Badge */}
+          <Badge variant="info" dot>
+            Monad Testnet
+          </Badge>
+          
+          {/* Wallet Button */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FAFAFA] border border-[#E5E5E5]">
+            <Wallet className="w-4 h-4 text-[#666666]" />
+            <span className="text-sm font-medium text-[#1A1A1A] hidden sm:block">
+              {shortenAddress(account || '')}
+            </span>
+            <button
+              onClick={disconnect}
+              className="p-1 rounded hover:bg-white transition-colors"
+              aria-label="Disconnect"
             >
-              <Bell size={20} className="text-white/70" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[#06FFA5] rounded-full" />
-            </motion.button>
-          )}
-
-          <WalletConnect />
+              <LogOut className="w-4 h-4 text-[#666666]" />
+            </button>
+          </div>
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 };
+
+export default TopBar;

@@ -1,63 +1,52 @@
-import { useState, useCallback, createContext, useContext } from 'react';
-import { TOAST_TYPES } from '../utils/constants';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { ToastContainer } from '../components/shared/Toast';
 
-const ToastContext = createContext();
+/**
+ * Toast Context & Hook
+ * Professional notification system
+ */
+
+const ToastContext = createContext(null);
+
+let toastId = 0;
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
-
-  const addToast = useCallback((message, type = TOAST_TYPES.INFO, duration = 5000) => {
-    const id = Date.now() + Math.random();
-    const toast = { id, message, type, duration };
+  
+  const addToast = useCallback(({ type = 'info', message, duration = 5000 }) => {
+    const id = toastId++;
+    const toast = { id, type, message, duration };
     
     setToasts((prev) => [...prev, toast]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, duration);
-    }
-
+    
     return id;
   }, []);
-
+  
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
-
-  const success = useCallback((message, duration) => {
-    return addToast(message, TOAST_TYPES.SUCCESS, duration);
-  }, [addToast]);
-
-  const error = useCallback((message, duration) => {
-    return addToast(message, TOAST_TYPES.ERROR, duration);
-  }, [addToast]);
-
-  const info = useCallback((message, duration) => {
-    return addToast(message, TOAST_TYPES.INFO, duration);
-  }, [addToast]);
-
-  const warning = useCallback((message, duration) => {
-    return addToast(message, TOAST_TYPES.WARNING, duration);
-  }, [addToast]);
-
-  const value = {
-    toasts,
-    addToast,
-    removeToast,
-    success,
-    error,
-    info,
-    warning,
+  
+  const toast = {
+    success: (message, duration) => addToast({ type: 'success', message, duration }),
+    error: (message, duration) => addToast({ type: 'error', message, duration }),
+    warning: (message, duration) => addToast({ type: 'warning', message, duration }),
+    info: (message, duration) => addToast({ type: 'info', message, duration }),
   };
-
-  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
+  
+  return (
+    <ToastContext.Provider value={toast}>
+      {children}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+    </ToastContext.Provider>
+  );
 };
 
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within ToastProvider');
+    throw new Error('useToast must be used within a ToastProvider');
   }
   return context;
 };
+
+export default useToast;

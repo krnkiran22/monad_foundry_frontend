@@ -1,130 +1,194 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ethers } from 'ethers';
 import { useWallet } from './useWallet';
-import { TOKEN_ABI, CONTRACT_ADDRESS } from '../contracts/abi';
+import { Contract } from 'ethers';
+import { parseEther, formatEther } from 'ethers';
+import { ERC20_ABI } from '../contracts/abi';
+import { CONTRACT_ADDRESS } from '../utils/constants';
+
+/**
+ * Contract Interaction Hook
+ * Provides methods to interact with the ERC20 contract
+ */
 
 export const useContract = () => {
-  const { provider, signer, isConnected } = useWallet();
-  const [contract, setContract] = useState(null);
-  const [contractWithSigner, setContractWithSigner] = useState(null);
-
-  useEffect(() => {
-    if (provider && CONTRACT_ADDRESS) {
-      const contractInstance = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        TOKEN_ABI,
-        provider
-      );
-      setContract(contractInstance);
-
-      if (signer) {
-        const contractWithSignerInstance = contractInstance.connect(signer);
-        setContractWithSigner(contractWithSignerInstance);
-      }
+  const { signer, provider } = useWallet();
+  
+  const getContract = (needsSigner = false) => {
+    if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      throw new Error('Contract address not configured');
     }
-  }, [provider, signer]);
-
-  // Read token info
-  const getTokenInfo = useCallback(async () => {
-    if (!contract) return null;
+    
+    if (needsSigner && !signer) {
+      throw new Error('Wallet not connected');
+    }
+    
+    return new Contract(
+      CONTRACT_ADDRESS,
+      ERC20_ABI,
+      needsSigner ? signer : provider
+    );
+  };
+  
+  /**
+   * Get token information
+   */
+  const getTokenInfo = async () => {
     try {
-      const [name, symbol, decimals, totalSupply] = await Promise.all([
+      const contract = getContract(false);
+      const [name, symbol, totalSupply, decimals] = await Promise.all([
         contract.name(),
         contract.symbol(),
-        contract.decimals(),
         contract.totalSupply(),
+        contract.decimals(),
       ]);
-      return { name, symbol, decimals, totalSupply };
+      
+      let balance = '0';
+      if (signer) {
+        const address = await signer.getAddress();
+        balance = await contract.balanceOf(address);
+      }
+      
+      return {
+        name,
+        symbol,
+        totalSupply: formatEther(totalSupply),
+        decimals: Number(decimals),
+        balance: formatEther(balance),
+      };
     } catch (error) {
-      console.error('Error fetching token info:', error);
-      return null;
+      console.error('Error getting token info:', error);
+      throw error;
     }
-  }, [contract]);
-
-  // Get balance
-  const getBalance = useCallback(async (address) => {
-    if (!contract || !address) return '0';
+  };
+  
+  /**
+   * Transfer tokens
+   */
+  const transfer = async (to, amount) => {
     try {
-      const balance = await contract.balanceOf(address);
-      return balance.toString();
+      const contract = getContract(true);
+      const amountInWei = parseEther(amount.toString());
+      const tx = await contract.transfer(to, amountInWei);
+      await tx.wait();
+      return tx;
     } catch (error) {
-      console.error('Error fetching balance:', error);
-      return '0';
+      console.error('Error transferring tokens:', error);
+      throw error;
     }
-  }, [contract]);
-
-  // Check if paused
-  const isPaused = useCallback(async () => {
-    if (!contract) return false;
+  };
+  
+  /**
+   * Mint tokens
+   */
+  const mint = async (to, amount) => {
     try {
+      const contract = getContract(true);
+      const amountInWei = parseEther(amount.toString());
+      const tx = await contract.mint(to, amountInWei);
+      await tx.wait();
+      return tx;
+    } catch (error) {
+      console.error('Error minting tokens:', error);
+      throw error;
+    }
+  };
+  
+  /**
+   * Pause token transfers
+   */
+  const pause = async () => {
+    try {
+      const contract = getContract(true);
+      const tx = await contract.pause();
+      await tx.wait();
+      return tx;
+    } catch (error) {
+      console.error('Error pausing contract:', error);
+      throw error;
+    }
+  };
+  
+  /**
+   * Unpause token transfers
+   */
+  const unpause = async () => {
+    try {
+      const contract = getContract(true);
+      const tx = await contract.unpause();
+      await tx.wait();
+      return tx;
+    } catch (error) {
+      console.error('Error unpausing contract:', error);
+      throw error;
+    }
+  };
+  
+  /**
+   * Check if contract is paused
+   */
+  const checkPauseStatus = async () => {
+    try {
+      const contract = getContract(false);
       return await contract.paused();
     } catch (error) {
       console.error('Error checking pause status:', error);
       return false;
     }
-  }, [contract]);
-
-  // Transfer tokens
-  const transfer = useCallback(async (to, amount) => {
-    if (!contractWithSigner) throw new Error('Wallet not connected');
+  };
+  
+  /**
+   * Grant role to address
+   */
+  const grantRole = async (role, address) => {
     try {
-      const tx = await contractWithSigner.transfer(to, amount);
+      const contract = getContract(true);
+      const tx = await contract.grantRole(role, address);
       await tx.wait();
       return tx;
     } catch (error) {
-      console.error('Transfer failed:', error);
+      console.error('Error granting role:', error);
       throw error;
     }
-  }, [contractWithSigner]);
-
-  // Mint tokens (requires MINTER_ROLE)
-  const mint = useCallback(async (to, amount) => {
-    if (!contractWithSigner) throw new Error('Wallet not connected');
+  };
+  
+  /**
+   * Revoke role from address
+   */
+  const revokeRole = async (role, address) => {
     try {
-      const tx = await contractWithSigner.mint(to, amount);
+      const contract = getContract(true);
+      const tx = await contract.revokeRole(role, address);
       await tx.wait();
       return tx;
     } catch (error) {
-      console.error('Mint failed:', error);
+      console.error('Error revoking role:', error);
       throw error;
     }
-  }, [contractWithSigner]);
-
-  // Pause contract (requires ADMIN_ROLE)
-  const pause = useCallback(async () => {
-    if (!contractWithSigner) throw new Error('Wallet not connected');
+  };
+  
+  /**
+   * Check if address has role
+   */
+  const hasRole = async (role, address) => {
     try {
-      const tx = await contractWithSigner.pause();
-      await tx.wait();
-      return tx;
+      const contract = getContract(false);
+      return await contract.hasRole(role, address);
     } catch (error) {
-      console.error('Pause failed:', error);
-      throw error;
+      console.error('Error checking role:', error);
+      return false;
     }
-  }, [contractWithSigner]);
-
-  // Unpause contract (requires ADMIN_ROLE)
-  const unpause = useCallback(async () => {
-    if (!contractWithSigner) throw new Error('Wallet not connected');
-    try {
-      const tx = await contractWithSigner.unpause();
-      await tx.wait();
-      return tx;
-    } catch (error) {
-      console.error('Unpause failed:', error);
-      throw error;
-    }
-  }, [contractWithSigner]);
-
+  };
+  
   return {
-    contract,
-    contractWithSigner,
     getTokenInfo,
-    getBalance,
-    isPaused,
     transfer,
     mint,
     pause,
     unpause,
+    checkPauseStatus,
+    grantRole,
+    revokeRole,
+    hasRole,
   };
 };
+
+export default useContract;
