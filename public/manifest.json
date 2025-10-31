@@ -1,0 +1,24 @@
+{
+  "name": "Monad Token Manager",
+  "short_name": "Monad",
+  "description": "Premium web application for managing ERC20 tokens on Monad testnet",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0F1A",
+  "theme_color": "#7B3FF2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/monadlogo.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/monadlogo.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    }
+  ]
+}
